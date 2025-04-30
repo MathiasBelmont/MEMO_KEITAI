@@ -9,15 +9,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Notas em Grade',
+      title: 'Notas com Exclusão',
       debugShowCheckedModeBanner: false,
       home: TelaComNotas(),
     );
   }
 }
 
-class TelaComNotas extends StatelessWidget {
-  final List<Map<String, String>> notas = List.generate(
+class TelaComNotas extends StatefulWidget {
+  @override
+  _TelaComNotasState createState() => _TelaComNotasState();
+}
+
+class _TelaComNotasState extends State<TelaComNotas> {
+  List<Map<String, String>> notas = List.generate(
     30,
     (index) => {
       "titulo": "Nota ${index + 1}",
@@ -39,6 +44,12 @@ class TelaComNotas extends StatelessWidget {
     return coresPastel[random.nextInt(coresPastel.length)];
   }
 
+  void removerNota(int index) {
+    setState(() {
+      notas.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,42 +69,59 @@ class TelaComNotas extends StatelessWidget {
                     crossAxisCount: 3,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
-                    children: notas.map((nota) {
-                      return Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: corAleatoria(),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: Offset(2, 2),
+                    children: List.generate(notas.length, (index) {
+                      final nota = notas[index];
+                      return Stack(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: corAleatoria(),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 4,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              nota["titulo"]!,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(height: 24), // espaço para o botão
+                                Text(
+                                  nota["titulo"]!,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Expanded(
+                                  child: Text(
+                                    nota["conteudo"]!,
+                                    style: TextStyle(fontSize: 12),
+                                    overflow: TextOverflow.fade,
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(height: 4),
-                            Expanded(
-                              child: Text(
-                                nota["conteudo"]!,
-                                style: TextStyle(fontSize: 12),
-                                overflow: TextOverflow.fade,
-                              ),
+                          ),
+                          // Botão de excluir
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: IconButton(
+                              icon: Icon(Icons.delete, size: 20),
+                              color: Colors.redAccent,
+                              onPressed: () => removerNota(index),
+                              tooltip: 'Excluir nota',
                             ),
-                          ],
-                        ),
+                          )
+                        ],
                       );
-                    }).toList(),
+                    }),
                   ),
                 ),
               ),
@@ -153,7 +181,7 @@ class TelaComNotas extends StatelessWidget {
               child: IconButton(
                 icon: Icon(Icons.add, color: Colors.white),
                 onPressed: () {
-                  // Ação do botão
+                  // Adicionar nova nota (exemplo)
                 },
               ),
             ),
