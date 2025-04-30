@@ -89,11 +89,77 @@ class _TelaComNotasState extends State<TelaComNotas> {
                         "conteudo": conteudo.trim(),
                       });
                     });
-                    Navigator.pop(context); // Fecha modal
+                    Navigator.pop(context);
                   }
                 },
                 icon: Icon(Icons.save),
                 label: Text('Salvar Nota'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.white,
+                  minimumSize: Size(double.infinity, 48),
+                ),
+              ),
+              SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void abrirModalEditarNota(int index) {
+    String titulo = notas[index]["titulo"]!;
+    String conteudo = notas[index]["conteudo"]!;
+    showModalBottomSheet(
+      isScrollControlled: true,
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 24,
+            left: 24,
+            right: 24,
+          ),
+          child: Wrap(
+            children: [
+              Text(
+                'Editar Nota',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                decoration: InputDecoration(labelText: 'Título'),
+                controller: TextEditingController(text: titulo),
+                onChanged: (value) => titulo = value,
+              ),
+              SizedBox(height: 8),
+              TextField(
+                decoration: InputDecoration(labelText: 'Texto'),
+                maxLines: 5,
+                controller: TextEditingController(text: conteudo),
+                onChanged: (value) => conteudo = value,
+              ),
+              SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (titulo.trim().isNotEmpty || conteudo.trim().isNotEmpty) {
+                    setState(() {
+                      notas[index] = {
+                        "titulo": titulo.trim(),
+                        "conteudo": conteudo.trim(),
+                      };
+                    });
+                    Navigator.pop(context);
+                  }
+                },
+                icon: Icon(Icons.save),
+                label: Text('Salvar Alterações'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.amber,
                   foregroundColor: Colors.white,
@@ -113,7 +179,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
     return Scaffold(
       body: Stack(
         children: [
-          // Corpo com grid
           Positioned.fill(
             child: Container(
               color: Colors.white,
@@ -129,57 +194,51 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       crossAxisCount: 3,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
-                      childAspectRatio: 1, // largura == altura
+                      childAspectRatio: 1,
                     ),
                     itemBuilder: (context, index) {
                       final nota = notas[index];
-                      return SizedBox(
-                        width: 120,
-                        height: 120,
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: corAleatoria(),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
                         child: Stack(
                           children: [
-                            Container(
+                            Padding(
                               padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: corAleatoria(),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 4,
-                                    offset: Offset(2, 2),
-                                  ),
-                                ],
-                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      SizedBox(height: 24),
-                                      Text(
-                                        nota["titulo"]!,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
+                                  SizedBox(height: 24),
+                                  GestureDetector(
+                                    onTap: () => abrirModalEditarNota(index),
+                                    child: Text(
+                                      nota["titulo"]!,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
                                       ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        nota["conteudo"]!,
-                                        style: TextStyle(fontSize: 12),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 5,
-                                      ),
-                                    ],
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
                                   ),
-                                  Spacer(), // força altura restante a ser ocupada
+                                  SizedBox(height: 4),
+                                  Expanded(
+                                    child: Text(
+                                      nota["conteudo"]!,
+                                      style: TextStyle(fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 5,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -202,8 +261,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
               ),
             ),
           ),
-
-          // AppBar com botão usuário
           Positioned(
             top: 0,
             left: 0,
@@ -234,8 +291,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
               ),
             ),
           ),
-
-          // Botão flutuante inferior
           Positioned(
             bottom: 16,
             right: 16,
