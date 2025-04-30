@@ -22,7 +22,7 @@ class TelaComNotas extends StatefulWidget {
 }
 
 class _TelaComNotasState extends State<TelaComNotas> {
-  List<Map<String, String>> notas = [];
+  List<Map<String, dynamic>> notas = [];
 
   final List<Color> coresPastel = [
     Color(0xFFFFF1C1),
@@ -87,6 +87,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       notas.add({
                         "titulo": titulo.trim(),
                         "conteudo": conteudo.trim(),
+                        "cor": corAleatoria(), // Associa uma cor fixa à nova nota
                       });
                     });
                     Navigator.pop(context);
@@ -111,6 +112,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
   void abrirModalEditarNota(int index) {
     String titulo = notas[index]["titulo"]!;
     String conteudo = notas[index]["conteudo"]!;
+    Color cor = notas[index]["cor"]; // Mantém a cor existente
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
@@ -153,6 +155,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       notas[index] = {
                         "titulo": titulo.trim(),
                         "conteudo": conteudo.trim(),
+                        "cor": cor, // Mantém a cor original ao editar
                       };
                     });
                     Navigator.pop(context);
@@ -200,7 +203,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       final nota = notas[index];
                       return Container(
                         decoration: BoxDecoration(
-                          color: corAleatoria(),
+                          color: nota["cor"], // Usa a cor fixa da nota
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
