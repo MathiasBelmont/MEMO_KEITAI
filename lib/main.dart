@@ -23,6 +23,8 @@ class TelaComNotas extends StatefulWidget {
 
 class _TelaComNotasState extends State<TelaComNotas> {
   List<Map<String, dynamic>> notas = [];
+  List<Map<String, dynamic>> notasFiltradas = [];
+  final TextEditingController _searchController = TextEditingController();
 
   final List<Color> coresPastel = [
     Color(0xFFFFF1C1),
@@ -38,9 +40,38 @@ class _TelaComNotasState extends State<TelaComNotas> {
     return coresPastel[random.nextInt(coresPastel.length)];
   }
 
+  @override
+  void initState() {
+    super.initState();
+    notasFiltradas = notas; // Inicialmente, exibe todas as notas
+    _searchController.addListener(_filtrarNotas); // Adiciona listener para busca
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose(); // Libera o controlador
+    super.dispose();
+  }
+
+  void _filtrarNotas() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        notasFiltradas = notas; // Mostra todas as notas se a busca estiver vazia
+      } else {
+        notasFiltradas = notas.where((nota) {
+          final titulo = nota["titulo"].toLowerCase();
+          final conteudo = nota["conteudo"].toLowerCase();
+          return titulo.contains(query) || conteudo.contains(query);
+        }).toList();
+      }
+    });
+  }
+
   void removerNota(int index) {
     setState(() {
       notas.removeAt(index);
+      _filtrarNotas(); // Atualiza a lista filtrada após remoção
     });
   }
 
@@ -87,8 +118,9 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       notas.add({
                         "titulo": titulo.trim(),
                         "conteudo": conteudo.trim(),
-                        "cor": corAleatoria(), // Associa uma cor fixa à nova nota
+                        "cor": corAleatoria(),
                       });
+                      _filtrarNotas(); // Atualiza a lista filtrada após adição
                     });
                     Navigator.pop(context);
                   }
@@ -112,7 +144,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
   void abrirModalEditarNota(int index) {
     String titulo = notas[index]["titulo"]!;
     String conteudo = notas[index]["conteudo"]!;
-    Color cor = notas[index]["cor"]; // Mantém a cor existente
+    Color cor = notas[index]["cor"];
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
@@ -155,8 +187,9 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       notas[index] = {
                         "titulo": titulo.trim(),
                         "conteudo": conteudo.trim(),
-                        "cor": cor, // Mantém a cor original ao editar
+                        "cor": cor,
                       };
+                      _filtrarNotas(); // Atualiza a lista filtrada após edição
                     });
                     Navigator.pop(context);
                   }
@@ -192,7 +225,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                   child: GridView.builder(
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
-                    itemCount: notas.length,
+                    itemCount: notasFiltradas.length,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 8,
@@ -200,10 +233,10 @@ class _TelaComNotasState extends State<TelaComNotas> {
                       childAspectRatio: 1,
                     ),
                     itemBuilder: (context, index) {
-                      final nota = notas[index];
+                      final nota = notasFiltradas[index];
                       return Container(
                         decoration: BoxDecoration(
-                          color: nota["cor"], // Usa a cor fixa da nota
+                          color: nota["cor"],
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
@@ -222,7 +255,8 @@ class _TelaComNotasState extends State<TelaComNotas> {
                                 children: [
                                   SizedBox(height: 24),
                                   GestureDetector(
-                                    onTap: () => abrirModalEditarNota(index),
+                                    onTap: () => abrirModalEditarNota(
+                                        notas.indexOf(nota)),
                                     child: Text(
                                       nota["titulo"]!,
                                       style: TextStyle(
@@ -251,7 +285,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                               child: IconButton(
                                 icon: Icon(Icons.delete, size: 20),
                                 color: Colors.redAccent,
-                                onPressed: () => removerNota(index),
+                                onPressed: () => removerNota(notas.indexOf(nota)),
                                 tooltip: 'Excluir nota',
                               ),
                             ),
@@ -270,27 +304,44 @@ class _TelaComNotasState extends State<TelaComNotas> {
             right: 0,
             child: Container(
               height: 80,
-              padding: EdgeInsets.only(top: 30, left: 16),
+              padding: EdgeInsets.only(top: 30, left: 16, right: 16),
               color: Colors.transparent,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.amber,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 6,
-                        offset: Offset(0, 3),
+              child: Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.amber,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 6,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.person, color: Colors.white),
+                      onPressed: () {},
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Pesquisar notas...',
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey),
                       ),
-                    ],
+                    ),
                   ),
-                  child: IconButton(
-                    icon: Icon(Icons.person, color: Colors.white),
-                    onPressed: () {},
-                  ),
-                ),
+                ],
               ),
             ),
           ),
