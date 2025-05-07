@@ -12,12 +12,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Notas com Modal',
+      title: 'memo.io',
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',
       routes: {
-        '/notas': (context) => const TelaComNotas(),
         '/login': (context) => const TelaLogin(),
+        '/notas': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          final int? userId = args is int ? args : null;
+          return TelaComNotas(userId: userId);
+        },
       },
     );
   }
