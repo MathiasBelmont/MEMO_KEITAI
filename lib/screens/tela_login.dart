@@ -180,10 +180,6 @@ class _TelaLoginState extends State<TelaLogin> {
                 },
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Login',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
               const SizedBox(height: 24),
               TextField(
                 controller: _emailController,
