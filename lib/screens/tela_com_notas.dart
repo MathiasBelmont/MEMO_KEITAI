@@ -6,10 +6,10 @@ import 'package:memoapi/api.dart';
 class TelaComNotas extends StatefulWidget {
   final int? userId;
 
-  const TelaComNotas({Key? key, this.userId}) : super(key: key);
+  const TelaComNotas({super.key, this.userId});
 
   @override
-  _TelaComNotasState createState() => _TelaComNotasState();
+  State<TelaComNotas> createState() => _TelaComNotasState();
 }
 
 class _TelaComNotasState extends State<TelaComNotas> {
@@ -155,9 +155,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
         }
       }
     } on ApiException catch (e) {
-      print(
-        "Erro (ApiException) ao carregar notas: ${e.message} (Code: ${e.code})",
-      );
       if (mounted) {
         if (e.code == 404) {
           setState(() {
@@ -174,8 +171,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
           });
         }
       }
-    } catch (e, s) {
-      print("Erro geral ao carregar notas: $e\nStackTrace: $s");
+    } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage =
@@ -252,13 +248,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
         );
       }
     } on ApiException catch (e) {
-      print("Erro (ApiException) ao remover nota: $e");
       _showSnackbar(
         "Erro na API ao remover a nota: ${e.message ?? 'Erro desconhecido'}",
         isError: true,
       );
     } catch (e) {
-      print("Erro geral ao remover nota API: $e");
       _showSnackbar("Ocorreu um erro ao remover a nota.", isError: true);
     } finally {
       if (mounted) setState(() => _isPerformingAction = false);
@@ -343,13 +337,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
         );
       }
     } on ApiException catch (e) {
-      print("Erro (ApiException) ao criar nota: $e");
       _showSnackbar(
         "Erro na API ao criar a nota: ${e.message ?? 'Erro desconhecido'}",
         isError: true,
       );
     } catch (e) {
-      print("Erro geral ao criar nota API: $e");
       _showSnackbar("Ocorreu um erro ao criar a nota.", isError: true);
     } finally {
       if (mounted) setState(() => _isPerformingAction = false);
@@ -485,13 +477,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
         );
       }
     } on ApiException catch (e) {
-      print("Erro (ApiException) ao editar nota: $e");
       _showSnackbar(
         "Erro na API ao atualizar a nota: ${e.message ?? 'Erro desconhecido'}",
         isError: true,
       );
     } catch (e) {
-      print("Erro geral ao editar nota API: $e");
       _showSnackbar("Ocorreu um erro ao atualizar a nota.", isError: true);
     } finally {
       if (mounted) setState(() => _isPerformingAction = false);
@@ -730,13 +720,10 @@ class _TelaComNotasState extends State<TelaComNotas> {
                                 boxShadow: [
                                   BoxShadow(
                                     color: isLongPressed
-                                        ? Colors.blue
-                                        .withOpacity(0.5)
+                                        ? Colors.blue.withAlpha((0.5 * 255).round()) // <-- MODIFIED
                                         : Colors.black12,
-                                    blurRadius:
-                                    isLongPressed ? 6 : 4,
-                                    spreadRadius:
-                                    isLongPressed ? 1 : 0,
+                                    blurRadius: isLongPressed ? 6 : 4,
+                                    spreadRadius: isLongPressed ? 1 : 0,
                                     offset: const Offset(2, 2),
                                   ),
                                 ],

@@ -98,7 +98,6 @@ class _TelaCadastroState extends State<TelaCadastro> {
           errorMessage = 'Erro ${httpResponse.statusCode} sem mensagem adicional.';
         }
 
-        print('API Error on Register: ${httpResponse.statusCode} - $errorMessage');
         String displayMessage;
         if (httpResponse.statusCode == 400) {
           if (errorMessage.toLowerCase().contains("email") && errorMessage.toLowerCase().contains("exist")) {
@@ -118,7 +117,6 @@ class _TelaCadastroState extends State<TelaCadastro> {
         _showSnackbar(displayMessage);
       }
     } on ApiException catch (e) {
-      print('Caught ApiException during register: Code: ${e.code}, Message: ${e.message}');
       String displayMessage = 'Erro na comunicação com a API.';
       if (e.message != null && e.message!.isNotEmpty) {
         try {
@@ -132,17 +130,16 @@ class _TelaCadastroState extends State<TelaCadastro> {
           displayMessage = 'Erro na API: ${e.message}';
         }
 
-        if (e.code != null && e.code != 0) {
+        if (e.code != 0) {
           displayMessage += ' (Código: ${e.code})';
           if (e.code == 409) displayMessage = 'Este e-mail já está cadastrado.';
         }
-      } else if (e.code != null && e.code != 0) {
+      } else if (e.code != 0) {
         displayMessage = 'Erro na API (Código: ${e.code}).';
         if (e.code == 409) displayMessage = 'Este e-mail já está cadastrado.';
       }
       _showSnackbar(displayMessage);
-    } catch (e, s) {
-      print('General Error during register: $e\nStackTrace: $s');
+    } catch (e) {
       _showSnackbar('Ocorreu um erro ao tentar fazer o cadastro. Verifique sua conexão ou tente novamente.');
     } finally {
       if (mounted) {

@@ -138,14 +138,14 @@ class _TelaLoginState extends State<TelaLogin> {
           displayMessage = 'Erro na API: ${e.message}';
         }
 
-        if (e.code != null && e.code != 0) {
+        if (e.code != 0) {
           displayMessage += ' (Código: ${e.code})';
         }
-      } else if (e.code != null && e.code != 0) {
+      } else if (e.code != 0) {
         displayMessage = 'Erro na API (Código: ${e.code}).';
       }
       _showErrorSnackbar(displayMessage);
-    } catch (e, s) {
+    } catch (e) {
       String displayMessage =
           'Ocorreu um erro ao tentar fazer login. Verifique sua conexão ou tente novamente.';
       if (e is FormatException) {
