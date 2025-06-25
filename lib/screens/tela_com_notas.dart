@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:async'; // Importado para usar o Timer
 import 'package:http/http.dart' as http;
 import 'package:memoapi/api.dart';
 import 'package:markdown_widget/markdown_widget.dart';
@@ -102,7 +103,7 @@ class _NoteEditorModalState extends State<_NoteEditorModal> {
           children: [
             Text(widget.tituloModal, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             TextField(controller: _tituloController, decoration: const InputDecoration(labelText: 'Título'), textInputAction: TextInputAction.next),
-            TextFormField(controller: _conteudoController, decoration: const InputDecoration(labelText: 'Texto (Markdown)'), maxLines: 6, textInputAction: TextInputAction.done),
+            TextFormField(controller: _conteudoController, decoration: const InputDecoration(labelText: 'Texto'), maxLines: 6, textInputAction: TextInputAction.done),
             _buildColorSelector(),
             const SizedBox(height: 8),
             _isSaving
@@ -136,13 +137,13 @@ class TelaComNotas extends StatefulWidget {
 }
 
 class _TelaComNotasState extends State<TelaComNotas> {
-  List<Map<String, dynamic>> notas = [];
-  List<Map<String, dynamic>> notasFiltradas = [];
+  List<Map<String, dynamic>> _displayedNotes = [];
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   String? _errorMessage;
   int? _longPressedNoteId;
   bool _isPerformingAction = false;
+  Timer? _debounce;
 
   final NoteControllerApi _noteApi = NoteControllerApi();
 
@@ -159,32 +160,31 @@ class _TelaComNotasState extends State<TelaComNotas> {
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_filtrarNotas);
-    _carregarNotasIniciais();
+    _searchController.addListener(_onSearchChanged);
+    _loadInitialNotes();
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_filtrarNotas);
+    _debounce?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  void _carregarNotasIniciais() {
-    if (widget.userId != null) {
-      _carregarNotas(widget.userId!);
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final Object? args = ModalRoute.of(context)?.settings.arguments;
-        final int? routeUserId = args is int ? args : null;
-        if (routeUserId != null) {
-          _carregarNotas(routeUserId);
-        } else {
-          setState(() { _isLoading = false; _errorMessage = "ID do usuário não fornecido."; });
-        }
-      });
-    }
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _loadNotes();
+    });
+  }
+
+  void _loadInitialNotes() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadNotes();
+      }
+    });
   }
 
   void _showSnackbar(String message, {bool isError = false}) {
@@ -192,12 +192,27 @@ class _TelaComNotasState extends State<TelaComNotas> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: isError ? Colors.redAccent : Colors.green));
   }
 
-  Future<void> _carregarNotas(int userId, {bool showLoading = true}) async {
+  Future<void> _loadNotes({bool showLoading = true}) async {
+    final currentUserId = widget.userId ?? ModalRoute.of(context)?.settings.arguments as int?;
+    if (currentUserId == null) {
+      if (mounted) setState(() { _isLoading = false; _errorMessage = "ID do usuário não fornecido."; });
+      return;
+    }
+
+    final query = _searchController.text.trim();
+
     if (showLoading && mounted) {
       setState(() { _isLoading = true; _errorMessage = null; });
     }
     try {
-      final http.Response httpResponse = await _noteApi.getAllByAuthorIdWithHttpInfo(userId);
+      final http.Response httpResponse;
+
+      if (query.isEmpty) {
+        httpResponse = await _noteApi.getAllByAuthorIdWithHttpInfo(currentUserId);
+      } else {
+        httpResponse = await _noteApi.searchByAuthorIdAndContentWithHttpInfo(currentUserId, query);
+      }
+
       if (!mounted) return;
 
       if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
@@ -219,39 +234,21 @@ class _TelaComNotasState extends State<TelaComNotas> {
           }).whereType<Map<String, dynamic>>().toList();
           tempNotas.sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
         }
-        setState(() { notas = tempNotas; _filtrarNotas(); _errorMessage = null; });
+        setState(() { _displayedNotes = tempNotas; _errorMessage = null; });
       } else if (httpResponse.statusCode == 404) {
-        setState(() { notas = []; _filtrarNotas(); _errorMessage = null; });
+        setState(() { _displayedNotes = []; _errorMessage = null; });
       } else {
-        setState(() { _errorMessage = "Erro ao carregar notas: ${httpResponse.statusCode}"; notas = []; _filtrarNotas(); });
+        setState(() { _errorMessage = "Erro ao carregar notas: ${httpResponse.statusCode}"; _displayedNotes = []; });
       }
     } catch (e) {
-      if (mounted) { setState(() { _errorMessage = "Ocorreu um erro ao buscar suas notas."; notas = []; _filtrarNotas(); }); }
+      if (mounted) { setState(() { _errorMessage = "Ocorreu um erro ao buscar suas notas."; _displayedNotes = []; }); }
     } finally {
       if (mounted) { setState(() { _isLoading = false; }); }
     }
   }
 
-  void _filtrarNotas() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      notasFiltradas = query.isEmpty
-          ? List.from(notas)
-          : notas.where((nota) {
-        final titulo = nota["titulo"].toString().toLowerCase();
-        final conteudo = nota["conteudo"].toString().toLowerCase();
-        return titulo.contains(query) || conteudo.contains(query);
-      }).toList();
-    });
-  }
-
   Future<void> _removerNotaApi(int noteId) async {
     if (!mounted) return;
-    final currentUserId = widget.userId ?? ModalRoute.of(context)?.settings.arguments as int?;
-    if (currentUserId == null) {
-      _showSnackbar("ID do usuário não disponível.", isError: true);
-      return;
-    }
     setState(() => _isPerformingAction = true);
     try {
       final http.Response response = await _noteApi.deleteById1WithHttpInfo(noteId);
@@ -259,7 +256,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
         _showSnackbar("Nota removida com sucesso!");
         if (mounted) {
           setState(() => _longPressedNoteId = null);
-          await _carregarNotas(currentUserId, showLoading: false);
+          await _loadNotes(showLoading: false);
         }
       } else {
         _showSnackbar("Erro ao remover nota (${response.statusCode})", isError: true);
@@ -273,9 +270,9 @@ class _TelaComNotasState extends State<TelaComNotas> {
     }
   }
 
-  void confirmarRemoverNota(int indexNoFiltrado) {
+  void confirmarRemoverNota(int index) {
     if (_isPerformingAction) return;
-    final notaParaRemover = notasFiltradas[indexNoFiltrado];
+    final notaParaRemover = _displayedNotes[index];
     final int? noteId = notaParaRemover['id'] as int?;
     if (noteId == null) return;
     showDialog(
@@ -345,10 +342,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
       builder: (context) => modalContent,
     );
     if (sucesso == true) {
-      final currentUserId = widget.userId ?? ModalRoute.of(context)?.settings.arguments as int?;
-      if (currentUserId != null) {
-        await _carregarNotas(currentUserId, showLoading: false);
-      }
+      await _loadNotes(showLoading: false);
     }
   }
 
@@ -362,9 +356,9 @@ class _TelaComNotasState extends State<TelaComNotas> {
     );
   }
 
-  void abrirModalEditarNota(int indexNoFiltrado) {
+  void abrirModalEditarNota(int index) {
     setState(() => _longPressedNoteId = null);
-    final notaOriginal = notasFiltradas[indexNoFiltrado];
+    final notaOriginal = _displayedNotes[index];
     final int? noteId = notaOriginal["id"] as int?;
     if (noteId == null) return;
     _abrirModal(
@@ -380,7 +374,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = widget.userId ?? ModalRoute.of(context)?.settings.arguments as int?;
     return Scaffold(
       body: GestureDetector(
         onTap: () {
@@ -396,23 +389,21 @@ class _TelaComNotasState extends State<TelaComNotas> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _errorMessage != null
-                    ? Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)), const SizedBox(height: 10), if (currentUserId != null) ElevatedButton(onPressed: () => _carregarNotas(currentUserId), child: const Text("Tentar Novamente"))])))
-                    : notasFiltradas.isEmpty
+                    ? Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)), const SizedBox(height: 10), ElevatedButton(onPressed: () => _loadNotes(), child: const Text("Tentar Novamente"))])))
+                    : _displayedNotes.isEmpty
                     ? Center(child: Text(_searchController.text.isEmpty ? "Você ainda não tem notas.\nToque em '+' para adicionar uma!" : "Nenhuma nota encontrada para sua busca.", textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.grey)))
                     : RefreshIndicator(
                   onRefresh: () async {
                     if (_isPerformingAction) return;
-                    if (currentUserId != null) {
-                      setState(() => _longPressedNoteId = null);
-                      await _carregarNotas(currentUserId, showLoading: false);
-                    }
+                    setState(() => _longPressedNoteId = null);
+                    await _loadNotes(showLoading: false);
                   },
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.8),
-                    itemCount: notasFiltradas.length,
+                    itemCount: _displayedNotes.length,
                     itemBuilder: (context, index) {
-                      final nota = notasFiltradas[index];
+                      final nota = _displayedNotes[index];
                       final notaId = nota['id'] as int?;
                       final isLongPressed = _longPressedNoteId == notaId;
                       return GestureDetector(

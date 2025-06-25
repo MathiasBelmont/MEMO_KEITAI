@@ -63,7 +63,7 @@ class NoteControllerApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
-    
+
     }
     return null;
   }
@@ -78,7 +78,7 @@ class NoteControllerApi {
   Future<Response> deleteById1WithHttpInfo(int id,) async {
     // ignore: prefer_const_declarations
     final path = r'/memo-io-back/notes/{id}'
-      .replaceAll('{id}', id.toString());
+        .replaceAll('{id}', id.toString());
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -116,7 +116,7 @@ class NoteControllerApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
-    
+
     }
     return null;
   }
@@ -160,7 +160,7 @@ class NoteControllerApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
-    
+
     }
     return null;
   }
@@ -175,7 +175,7 @@ class NoteControllerApi {
   Future<Response> getAllByAuthorIdWithHttpInfo(int id,) async {
     // ignore: prefer_const_declarations
     final path = r'/memo-io-back/notes/author/{id}'
-      .replaceAll('{id}', id.toString());
+        .replaceAll('{id}', id.toString());
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -213,7 +213,7 @@ class NoteControllerApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
-    
+
     }
     return null;
   }
@@ -228,7 +228,7 @@ class NoteControllerApi {
   Future<Response> getById1WithHttpInfo(int id,) async {
     // ignore: prefer_const_declarations
     final path = r'/memo-io-back/notes/{id}'
-      .replaceAll('{id}', id.toString());
+        .replaceAll('{id}', id.toString());
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -266,7 +266,66 @@ class NoteControllerApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
-    
+
+    }
+    return null;
+  }
+
+  /// Endpoint para buscar notas de um autor pelo conteúdo
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] authorId (required):
+  ///
+  /// * [String] content (required):
+  Future<Response> searchByAuthorIdAndContentWithHttpInfo(int authorId, String content,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/memo-io-back/notes/author/{authorId}/search'
+        .replaceAll('{authorId}', authorId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    queryParams.add(QueryParam('content', content));
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Endpoint para buscar notas de um autor pelo conteúdo
+  ///
+  /// Parameters:
+  ///
+  /// * [int] authorId (required):
+  ///
+  /// * [String] content (required):
+  Future<Object?> searchByAuthorIdAndContent(int authorId, String content,) async {
+    final response = await searchByAuthorIdAndContentWithHttpInfo(authorId, content,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
+
     }
     return null;
   }
@@ -283,7 +342,7 @@ class NoteControllerApi {
   Future<Response> updateById1WithHttpInfo(int id, NoteUpdateDTO noteUpdateDTO,) async {
     // ignore: prefer_const_declarations
     final path = r'/memo-io-back/notes/{id}'
-      .replaceAll('{id}', id.toString());
+        .replaceAll('{id}', id.toString());
 
     // ignore: prefer_final_locals
     Object? postBody = noteUpdateDTO;
@@ -323,7 +382,7 @@ class NoteControllerApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Object',) as Object;
-    
+
     }
     return null;
   }
