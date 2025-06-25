@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'dart:async'; // Importado para usar o Timer
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:memoapi/api.dart';
 import 'package:markdown_widget/markdown_widget.dart';
@@ -399,14 +399,22 @@ class _TelaComNotasState extends State<TelaComNotas> {
                     await _loadNotes(showLoading: false);
                   },
                   child: GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.8),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.85,
+                    ),
                     itemCount: _displayedNotes.length,
                     itemBuilder: (context, index) {
                       final nota = _displayedNotes[index];
                       final notaId = nota['id'] as int?;
                       final isLongPressed = _longPressedNoteId == notaId;
-                      return GestureDetector(
+
+                      return _NoteCard(
+                        nota: nota,
+                        isLongPressed: isLongPressed,
                         onLongPress: () => setState(() => _longPressedNoteId = notaId),
                         onTap: () {
                           if (isLongPressed) {
@@ -415,36 +423,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                             abrirModalEditarNota(index);
                           }
                         },
-                        child: Container(
-                          key: ValueKey(nota['id']),
-                          decoration: BoxDecoration(color: nota["cor"] as Color?, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: isLongPressed ? Colors.blue.withOpacity(0.5) : Colors.black12, blurRadius: isLongPressed ? 6 : 4, spreadRadius: isLongPressed ? 1 : 0)], border: isLongPressed ? Border.all(color: Colors.blueAccent, width: 2) : null),
-                          child: Stack(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(nota["titulo"]?.toString() ?? 'Sem Título', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 2),
-                                    const SizedBox(height: 4),
-                                    Expanded(child: IgnorePointer(child: MarkdownWidget(data: nota["conteudo"]?.toString() ?? '', shrinkWrap: true, config: MarkdownConfig(configs: [PConfig(textStyle: const TextStyle(fontSize: 12, color: Colors.black87))])))),
-                                  ],
-                                ),
-                              ),
-                              if (isLongPressed)
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.delete, size: 20),
-                                    color: Colors.redAccent.withOpacity(0.8),
-                                    onPressed: _isPerformingAction ? null : () => confirmarRemoverNota(index),
-                                    tooltip: 'Excluir nota',
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                        onDelete: _isPerformingAction ? null : () => confirmarRemoverNota(index),
                       );
                     },
                   ),
@@ -477,6 +456,128 @@ class _TelaComNotasState extends State<TelaComNotas> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteCard extends StatelessWidget {
+  final Map<String, dynamic> nota;
+  final bool isLongPressed;
+  final VoidCallback onLongPress;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+
+  const _NoteCard({
+    required this.nota,
+    required this.isLongPressed,
+    required this.onLongPress,
+    required this.onTap,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color cardColor = nota["cor"] as Color;
+    final String title = nota["titulo"]?.toString() ?? 'Sem Título';
+    final String content = nota["conteudo"]?.toString() ?? '';
+
+    return GestureDetector(
+      onLongPress: onLongPress,
+      onTap: onTap,
+      child: Container(
+        key: ValueKey(nota['id']),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: isLongPressed ? Colors.blue.withOpacity(0.4) : Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: isLongPressed ? Border.all(color: Colors.blueAccent.withOpacity(0.8), width: 2.5) : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: IgnorePointer(
+                        child: MarkdownWidget(
+                          data: content,
+                          shrinkWrap: true,
+                          config: MarkdownConfig(
+                            configs: [
+                              PConfig(
+                                textStyle: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black.withOpacity(0.7),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        cardColor.withOpacity(0.0),
+                        cardColor,
+                      ],
+                      stops: const [0.0, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              if (isLongPressed)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    icon: const Icon(Icons.delete_forever_rounded, size: 22),
+                    color: Colors.red.shade700.withOpacity(0.9),
+                    onPressed: onDelete,
+                    tooltip: 'Excluir nota',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.5),
+                      iconSize: 22,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
