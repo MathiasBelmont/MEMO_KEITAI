@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:memoapi/api.dart'; // Presumo que NoteCreateDTO, NoteUpdateDTO venham daqui
+import 'package:memoapi/api.dart';
 
 class TelaComNotas extends StatefulWidget {
   final int? userId;
 
-  const TelaComNotas({Key? key, this.userId}) : super(key: key);
+  const TelaComNotas({super.key, this.userId});
 
   @override
-  _TelaComNotasState createState() => _TelaComNotasState();
+  State<TelaComNotas> createState() => _TelaComNotasState();
 }
 
 class _TelaComNotasState extends State<TelaComNotas> {
@@ -23,6 +23,8 @@ class _TelaComNotasState extends State<TelaComNotas> {
   final NoteControllerApi _noteApi = NoteControllerApi();
 
   static final Color _fixedNoteColor = Colors.yellow[200]!;
+
+  int? _longPressedNoteId;
 
   @override
   void initState() {
@@ -67,15 +69,14 @@ class _TelaComNotasState extends State<TelaComNotas> {
     }
 
     try {
-      final http.Response httpResponse = await _noteApi
-          .getAllByAuthorIdWithHttpInfo(userId);
+      final http.Response httpResponse =
+      await _noteApi.getAllByAuthorIdWithHttpInfo(userId);
 
       if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
         if (httpResponse.body.isNotEmpty) {
           final List<dynamic> responseData = jsonDecode(httpResponse.body);
           if (mounted) {
-            List<Map<String, dynamic>> tempNotas =
-            responseData
+            List<Map<String, dynamic>> tempNotas = responseData
                 .map((notaData) {
               if (notaData is Map<String, dynamic>) {
                 return {
@@ -131,10 +132,9 @@ class _TelaComNotasState extends State<TelaComNotas> {
             try {
               final errorData = jsonDecode(httpResponse.body);
               if (errorData is Map) {
-                apiErrorMsg =
-                    errorData['message'] ??
-                        errorData['error'] ??
-                        httpResponse.body;
+                apiErrorMsg = errorData['message'] ??
+                    errorData['error'] ??
+                    httpResponse.body;
               } else {
                 apiErrorMsg = httpResponse.body;
               }
@@ -155,9 +155,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
         }
       }
     } on ApiException catch (e) {
-      print(
-        "Erro (ApiException) ao carregar notas: ${e.message} (Code: ${e.code})",
-      );
       if (mounted) {
         if (e.code == 404) {
           setState(() {
@@ -174,8 +171,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
           });
         }
       }
-    } catch (e, s) {
-      print("Erro geral ao carregar notas: $e\nStackTrace: $s");
+    } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage =
@@ -208,12 +204,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
       if (query.isEmpty) {
         notasFiltradas = List.from(notas);
       } else {
-        notasFiltradas =
-            notas.where((nota) {
-              final titulo = nota["titulo"].toString().toLowerCase();
-              final conteudo = nota["conteudo"].toString().toLowerCase();
-              return titulo.contains(query) || conteudo.contains(query);
-            }).toList();
+        notasFiltradas = notas.where((nota) {
+          final titulo = nota["titulo"].toString().toLowerCase();
+          final conteudo = nota["conteudo"].toString().toLowerCase();
+          return titulo.contains(query) || conteudo.contains(query);
+        }).toList();
       }
     });
   }
@@ -235,14 +230,16 @@ class _TelaComNotasState extends State<TelaComNotas> {
       if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
         _showSnackbar("Nota removida com sucesso!");
         if (mounted) {
+          setState(() {
+            _longPressedNoteId = null;
+          });
           await _carregarNotas(
             currentUserId,
             showLoading: false,
           );
         }
       } else {
-        String errorDetail =
-        httpResponse.body.isNotEmpty
+        String errorDetail = httpResponse.body.isNotEmpty
             ? httpResponse.body
             : "Sem detalhes adicionais.";
         _showSnackbar(
@@ -251,13 +248,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
         );
       }
     } on ApiException catch (e) {
-      print("Erro (ApiException) ao remover nota: $e");
       _showSnackbar(
         "Erro na API ao remover a nota: ${e.message ?? 'Erro desconhecido'}",
         isError: true,
       );
     } catch (e) {
-      print("Erro geral ao remover nota API: $e");
       _showSnackbar("Ocorreu um erro ao remover a nota.", isError: true);
     } finally {
       if (mounted) setState(() => _isPerformingAction = false);
@@ -333,8 +328,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
           await _carregarNotas(currentUserId, showLoading: false);
         }
       } else {
-        String errorDetail =
-        httpResponse.body.isNotEmpty
+        String errorDetail = httpResponse.body.isNotEmpty
             ? httpResponse.body
             : "Sem detalhes adicionais.";
         _showSnackbar(
@@ -343,13 +337,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
         );
       }
     } on ApiException catch (e) {
-      print("Erro (ApiException) ao criar nota: $e");
       _showSnackbar(
         "Erro na API ao criar a nota: ${e.message ?? 'Erro desconhecido'}",
         isError: true,
       );
     } catch (e) {
-      print("Erro geral ao criar nota API: $e");
       _showSnackbar("Ocorreu um erro ao criar a nota.", isError: true);
     } finally {
       if (mounted) setState(() => _isPerformingAction = false);
@@ -357,6 +349,10 @@ class _TelaComNotasState extends State<TelaComNotas> {
   }
 
   void abrirModalCriarNota() {
+    setState(() {
+      _longPressedNoteId = null;
+    });
+
     String titulo = '';
     String conteudo = '';
     showModalBottomSheet(
@@ -443,7 +439,6 @@ class _TelaComNotasState extends State<TelaComNotas> {
     });
   }
 
-
   Future<void> _editarNotaApi(
       int noteId,
       String titulo,
@@ -473,8 +468,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
           await _carregarNotas(currentUserId, showLoading: false);
         }
       } else {
-        String errorDetail =
-        httpResponse.body.isNotEmpty
+        String errorDetail = httpResponse.body.isNotEmpty
             ? httpResponse.body
             : "Sem detalhes adicionais.";
         _showSnackbar(
@@ -483,13 +477,11 @@ class _TelaComNotasState extends State<TelaComNotas> {
         );
       }
     } on ApiException catch (e) {
-      print("Erro (ApiException) ao editar nota: $e");
       _showSnackbar(
         "Erro na API ao atualizar a nota: ${e.message ?? 'Erro desconhecido'}",
         isError: true,
       );
     } catch (e) {
-      print("Erro geral ao editar nota API: $e");
       _showSnackbar("Ocorreu um erro ao atualizar a nota.", isError: true);
     } finally {
       if (mounted) setState(() => _isPerformingAction = false);
@@ -497,6 +489,10 @@ class _TelaComNotasState extends State<TelaComNotas> {
   }
 
   void abrirModalEditarNota(int indexNoFiltrado) {
+    setState(() {
+      _longPressedNoteId = null;
+    });
+
     final notaOriginal = notasFiltradas[indexNoFiltrado];
     final int? noteId = notaOriginal["id"] as int?;
 
@@ -605,241 +601,296 @@ class _TelaComNotasState extends State<TelaComNotas> {
     final currentUserId = widget.userId ?? currentUserIdFromArg;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.only(top: 90, bottom: 80),
-              child:
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                  ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (currentUserId != null && _errorMessage != "ID do usuário não fornecido. Não é possível carregar as notas.")
-                        ElevatedButton(
-                          onPressed:
-                              () => _carregarNotas(currentUserId),
-                          child: const Text("Tentar Novamente"),
-                        ),
-                    ],
-                  ),
-                ),
-              )
-                  : notasFiltradas.isEmpty
-                  ? Center(
-                child: Text(
-                  _searchController.text.isEmpty
-                      ? "Você ainda não tem notas.\nToque em '+' para adicionar uma!"
-                      : "Nenhuma nota encontrada para sua busca.",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                ),
-              )
-                  : RefreshIndicator(
-                onRefresh: () async {
-                  if (currentUserId != null) {
-                    await _carregarNotas(
-                      currentUserId,
-                      showLoading: false,
-                    );
-                  }
-                },
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+      body: GestureDetector(
+        onTap: () {
+          if (_longPressedNoteId != null) {
+            setState(() {
+              _longPressedNoteId = null;
+            });
+          }
+        },
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.only(top: 90, bottom: 80),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage != null
+                    ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                    ),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 0.8,
-                      ),
-                      itemCount: notasFiltradas.length,
-                      itemBuilder: (context, index) {
-                        final nota = notasFiltradas[index];
-                        return Container(
-                          key: ValueKey(nota['id']),
-                          decoration: BoxDecoration(
-                            color:
-                            nota["cor"] as Color? ??
-                                _fixedNoteColor,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 4,
-                                offset: Offset(2, 2),
-                              ),
-                            ],
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 16,
                           ),
-                          child: Stack(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 24),
-                                    GestureDetector(
-                                      onTap:
-                                          () => abrirModalEditarNota(
-                                        index,
-                                      ),
-                                      child: Text(
-                                        nota["titulo"]?.toString() ??
-                                            'Sem Título',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                        ),
+                        const SizedBox(height: 10),
+                        if (currentUserId != null &&
+                            _errorMessage !=
+                                "ID do usuário não fornecido. Não é possível carregar as notas.")
+                          ElevatedButton(
+                            onPressed: () =>
+                                _carregarNotas(currentUserId),
+                            child: const Text("Tentar Novamente"),
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+                    : notasFiltradas.isEmpty
+                    ? Center(
+                  child: Text(
+                    _searchController.text.isEmpty
+                        ? "Você ainda não tem notas.\nToque em '+' para adicionar uma!"
+                        : "Nenhuma nota encontrada para sua busca.",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                )
+                    : RefreshIndicator(
+                  onRefresh: () async {
+                    if (currentUserId != null) {
+                      setState(() {
+                        _longPressedNoteId = null;
+                      });
+                      await _carregarNotas(
+                        currentUserId,
+                        showLoading: false,
+                      );
+                    }
+                  },
+                  child: SingleChildScrollView(
+                    physics:
+                    const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                      ),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics:
+                        const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 0.8,
+                        ),
+                        itemCount: notasFiltradas.length,
+                        itemBuilder: (context, index) {
+                          final nota = notasFiltradas[index];
+                          final notaId = nota['id'] as int?;
+                          final isLongPressed =
+                              _longPressedNoteId == notaId;
+
+                          return GestureDetector(
+                            onLongPress: () {
+                              setState(() {
+                                _longPressedNoteId = notaId;
+                              });
+                            },
+                            onTap: () {
+                              if (isLongPressed) {
+                                setState(() {
+                                  _longPressedNoteId = null;
+                                });
+                              } else {
+                                abrirModalEditarNota(index);
+                              }
+                            },
+                            child: Container(
+                              key: ValueKey(nota['id']),
+                              decoration: BoxDecoration(
+                                color: nota["cor"] as Color? ??
+                                    _fixedNoteColor,
+                                borderRadius:
+                                BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isLongPressed
+                                        ? Colors.blue.withAlpha((0.5 * 255).round()) // <-- MODIFIED
+                                        : Colors.black12,
+                                    blurRadius: isLongPressed ? 6 : 4,
+                                    spreadRadius: isLongPressed ? 1 : 0,
+                                    offset: const Offset(2, 2),
+                                  ),
+                                ],
+                                border: isLongPressed
+                                    ? Border.all(
+                                    color: Colors.blueAccent,
+                                    width: 2)
+                                    : null,
+                              ),
+                              child: Stack(
+                                children: [
+                                  Padding(
+                                    padding:
+                                    const EdgeInsets.all(10),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .start,
+                                      children: [
+                                        Text(
+                                          nota["titulo"]
+                                              ?.toString() ??
+                                              'Sem Título',
+                                          style:
+                                          const TextStyle(
+                                            fontWeight:
+                                            FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                          overflow: TextOverflow
+                                              .ellipsis,
+                                          maxLines: 2,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap:
-                                            () => abrirModalEditarNota(
-                                          index,
-                                        ),
-                                        child: Container(
-                                          color: Colors.transparent,
-                                          width: double.infinity,
-                                          child: Text(
-                                            nota["conteudo"]
-                                                ?.toString() ??
-                                                '',
-                                            style: const TextStyle(
-                                              fontSize: 12,
+                                        const SizedBox(height: 4),
+                                        Expanded(
+                                          child: Container(
+                                            color: Colors
+                                                .transparent,
+                                            width:
+                                            double.infinity,
+                                            child: Text(
+                                              nota["conteudo"]
+                                                  ?.toString() ??
+                                                  '',
+                                              style:
+                                              const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                              overflow:
+                                              TextOverflow
+                                                  .ellipsis,
+                                              maxLines: 5,
                                             ),
-                                            overflow:
-                                            TextOverflow.ellipsis,
-                                            maxLines: 5,
                                           ),
                                         ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isLongPressed)
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          size: 20,
+                                        ),
+                                        color: Colors.redAccent
+                                            .withAlpha((255 * 0.8)
+                                            .round()),
+                                        onPressed: () =>
+                                            confirmarRemoverNota(
+                                                index),
+                                        tooltip: 'Excluir nota',
                                       ),
                                     ),
-                                  ],
-                                ),
+                                ],
                               ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    size: 20,
-                                  ),
-                                  color: Colors.redAccent.withAlpha((255 * 0.8).round()),
-                                  onPressed: () => confirmarRemoverNota(index),
-                                  tooltip: 'Excluir nota',
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 10,
-                left: 16,
-                right: 16,
-                bottom: 10,
-              ),
-              // CORRIGIDO AQUI:
-              color: Colors.white.withAlpha((255 * 0.95).round()),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Pesquisar notas...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 0,
-                          horizontal: 20,
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () {
-                      Navigator.of(context).pushNamedAndRemoveUntil(
-                        '/login',
-                            (Route<dynamic> route) => false,
-                      );
-                    },
-                    tooltip: 'Sair',
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: 24,
-            right: 24,
-            child: FloatingActionButton(
-              backgroundColor: Colors.amber,
-              onPressed: _isPerformingAction ? null : abrirModalCriarNota,
-              tooltip: 'Adicionar Nota',
-              child:
-              _isPerformingAction && ModalRoute.of(context)?.isCurrent == true
-                  ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 3,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 10,
+                  left: 16,
+                  right: 16,
+                  bottom: 10,
                 ),
-              )
-                  : const Icon(Icons.add, color: Colors.white, size: 28),
+                color: Colors.white.withAlpha((255 * 0.95).round()),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onTap: () {
+                          if (_longPressedNoteId != null) {
+                            setState(() {
+                              _longPressedNoteId = null;
+                            });
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Pesquisar notas...',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25.0),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[200],
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 0,
+                            horizontal: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout),
+                      onPressed: () {
+                        setState(() {
+                          _longPressedNoteId = null;
+                        });
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          '/login',
+                              (Route<dynamic> route) => false,
+                        );
+                      },
+                      tooltip: 'Sair',
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+            Positioned(
+              bottom: 24,
+              right: 24,
+              child: FloatingActionButton(
+                backgroundColor: Colors.amber,
+                onPressed:
+                _isPerformingAction ? null : abrirModalCriarNota,
+                tooltip: 'Adicionar Nota',
+                child: _isPerformingAction &&
+                    ModalRoute.of(context)?.isCurrent == true
+                    ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+                    : const Icon(Icons.add, color: Colors.white, size: 28),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -3,38 +3,54 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:memoapi/api.dart';
 
-class TelaLogin extends StatefulWidget {
-  const TelaLogin({super.key});
+class TelaCadastro extends StatefulWidget {
+  const TelaCadastro({super.key});
 
   @override
-  State<TelaLogin> createState() => _TelaLoginState();
+  State<TelaCadastro> createState() => _TelaCadastroState();
 }
 
-class _TelaLoginState extends State<TelaLogin> {
+class _TelaCadastroState extends State<TelaCadastro> {
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _showErrorSnackbar(String message) {
+  void _showSnackbar(String message, {bool isError = true}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.redAccent : Colors.green,
+      ),
     );
   }
 
-  void _login() async {
+  void _register() async {
+    final String name = _nameController.text.trim();
     final String email = _emailController.text.trim();
     final String password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      _showErrorSnackbar('Por favor, preencha todos os campos.');
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      _showSnackbar('Por favor, preencha todos os campos.');
+      return;
+    }
+
+    if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email)) {
+      _showSnackbar('Por favor, insira um e-mail válido.');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showSnackbar('A senha deve ter pelo menos 6 caracteres.');
       return;
     }
 
@@ -42,47 +58,22 @@ class _TelaLoginState extends State<TelaLogin> {
       _isLoading = true;
     });
 
-    final userLoginDTO = UserLoginDTO(email: email, password: password);
+    final userCreateDTO = UserCreateDTO(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
     try {
       final api = UserControllerApi();
-      final http.Response httpResponse = await api.loginWithHttpInfo(
-        userLoginDTO,
+      final http.Response httpResponse = await api.createWithHttpInfo(
+        userCreateDTO,
       );
 
       if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
-        if (httpResponse.body.isNotEmpty) {
-          try {
-            final Map<String, dynamic> responseData = jsonDecode(
-              httpResponse.body,
-            );
-            final dynamic userIdDynamic = responseData['id'];
-            int? userId;
-
-            if (userIdDynamic is int) {
-              userId = userIdDynamic;
-            } else if (userIdDynamic is String) {
-              userId = int.tryParse(userIdDynamic);
-            }
-
-            if (userId != null) {
-              if (mounted) {
-                Navigator.pushReplacementNamed(
-                  context,
-                  '/notas',
-                  arguments: userId,
-                );
-              }
-            } else {
-              _showErrorSnackbar(
-                'Não foi possível obter o ID do usuário da resposta.',
-              );
-            }
-          } catch (e) {
-            _showErrorSnackbar('Resposta do servidor inválida.');
-          }
-        } else {
-          _showErrorSnackbar('Login bem-sucedido, mas sem dados retornados.');
+        _showSnackbar('Cadastro realizado com sucesso!', isError: false);
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         }
       } else {
         String errorMessage = 'Erro desconhecido do servidor.';
@@ -90,11 +81,13 @@ class _TelaLoginState extends State<TelaLogin> {
           try {
             final errorData = jsonDecode(httpResponse.body);
             if (errorData is Map) {
-              errorMessage =
-                  errorData['message'] ??
-                      errorData['error'] ??
-                      errorData['detail'] ??
-                      httpResponse.body;
+              errorMessage = errorData['message'] ??
+                  errorData['error'] ??
+                  errorData['detail'] ??
+                  (errorData['errors'] is Map ? errorData['errors'].values.join(', ') : null) ??
+                  httpResponse.body;
+            } else if (errorData is String) {
+              errorMessage = errorData;
             } else {
               errorMessage = httpResponse.body;
             }
@@ -102,24 +95,26 @@ class _TelaLoginState extends State<TelaLogin> {
             errorMessage = httpResponse.body;
           }
         } else {
-          errorMessage =
-          'Erro ${httpResponse.statusCode} sem mensagem adicional.';
+          errorMessage = 'Erro ${httpResponse.statusCode} sem mensagem adicional.';
         }
 
         String displayMessage;
-        if (httpResponse.statusCode == 401) {
-          displayMessage = 'Credenciais inválidas. Por favor, tente novamente.';
-        } else if (httpResponse.statusCode == 404){
-          displayMessage = 'Usuário não encontrado ou informações incorretas.';
-        } else {
-          String sanitizedApiMessage =
-          errorMessage.length > 100
-              ? "${errorMessage.substring(0, 100)}..."
-              : errorMessage;
-          displayMessage =
-          'Erro na API (${httpResponse.statusCode}): $sanitizedApiMessage';
+        if (httpResponse.statusCode == 400) {
+          if (errorMessage.toLowerCase().contains("email") && errorMessage.toLowerCase().contains("exist")) {
+            displayMessage = 'Este e-mail já está cadastrado.';
+          } else {
+            displayMessage = 'Dados inválidos. Verifique os campos e tente novamente.';
+          }
+        } else if (httpResponse.statusCode == 409) {
+          displayMessage = 'Este e-mail já está cadastrado.';
         }
-        _showErrorSnackbar(displayMessage);
+        else {
+          String sanitizedApiMessage = errorMessage.length > 150
+              ? "${errorMessage.substring(0, 150)}..."
+              : errorMessage;
+          displayMessage = 'Erro ao cadastrar (${httpResponse.statusCode}): $sanitizedApiMessage';
+        }
+        _showSnackbar(displayMessage);
       }
     } on ApiException catch (e) {
       String displayMessage = 'Erro na comunicação com a API.';
@@ -128,10 +123,7 @@ class _TelaLoginState extends State<TelaLogin> {
           final errorBody = jsonDecode(e.message!);
           if (errorBody is Map && errorBody['message'] != null) {
             displayMessage = 'Erro na API: ${errorBody['message']}';
-          } else if (errorBody is Map && errorBody['detail'] != null) {
-            displayMessage = 'Erro na API: ${errorBody['detail']}';
-          }
-          else {
+          } else {
             displayMessage = 'Erro na API: ${e.message}';
           }
         } catch (_) {
@@ -140,18 +132,15 @@ class _TelaLoginState extends State<TelaLogin> {
 
         if (e.code != 0) {
           displayMessage += ' (Código: ${e.code})';
+          if (e.code == 409) displayMessage = 'Este e-mail já está cadastrado.';
         }
       } else if (e.code != 0) {
         displayMessage = 'Erro na API (Código: ${e.code}).';
+        if (e.code == 409) displayMessage = 'Este e-mail já está cadastrado.';
       }
-      _showErrorSnackbar(displayMessage);
+      _showSnackbar(displayMessage);
     } catch (e) {
-      String displayMessage =
-          'Ocorreu um erro ao tentar fazer login. Verifique sua conexão ou tente novamente.';
-      if (e is FormatException) {
-        displayMessage = 'Erro ao processar a resposta do servidor.';
-      }
-      _showErrorSnackbar(displayMessage);
+      _showSnackbar('Ocorreu um erro ao tentar fazer o cadastro. Verifique sua conexão ou tente novamente.');
     } finally {
       if (mounted) {
         setState(() {
@@ -164,6 +153,16 @@ class _TelaLoginState extends State<TelaLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Criar Conta'),
+        backgroundColor: Colors.amber,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -172,15 +171,34 @@ class _TelaLoginState extends State<TelaLogin> {
             children: [
               Image.asset(
                 'assets/logo.png',
-                width: 150,
-                height: 150,
+                width: 120,
+                height: 120,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.image_not_supported, size: 150);
+                  return const Icon(Icons.image_not_supported, size: 120);
                 },
               ),
-              const SizedBox(height: 32),
               const SizedBox(height: 24),
+              const Text(
+                'Cadastro',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _nameController,
+                keyboardType: TextInputType.name,
+                decoration: InputDecoration(
+                  labelText: 'Nome Completo',
+                  filled: true,
+                  fillColor: Colors.grey[200],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: const Icon(Icons.person_outline),
+                ),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -214,7 +232,7 @@ class _TelaLoginState extends State<TelaLogin> {
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
-                onPressed: _login,
+                onPressed: _register,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.amber,
                   foregroundColor: Colors.white,
@@ -223,15 +241,15 @@ class _TelaLoginState extends State<TelaLogin> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Entrar'),
+                child: const Text('Cadastrar'),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/cadastro');
+                  Navigator.pushReplacementNamed(context, '/login');
                 },
                 child: const Text(
-                  'Não tem uma conta? Cadastre-se',
+                  'Já tem uma conta? Faça login',
                   style: TextStyle(color: Colors.amber),
                 ),
               ),
