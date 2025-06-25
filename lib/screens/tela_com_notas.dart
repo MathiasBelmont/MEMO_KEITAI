@@ -199,6 +199,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
     try {
       final http.Response httpResponse = await _noteApi.getAllByAuthorIdWithHttpInfo(userId);
       if (!mounted) return;
+
       if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
         List<Map<String, dynamic>> tempNotas = [];
         if (httpResponse.body.isNotEmpty) {
@@ -219,6 +220,8 @@ class _TelaComNotasState extends State<TelaComNotas> {
           tempNotas.sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
         }
         setState(() { notas = tempNotas; _filtrarNotas(); _errorMessage = null; });
+      } else if (httpResponse.statusCode == 404) {
+        setState(() { notas = []; _filtrarNotas(); _errorMessage = null; });
       } else {
         setState(() { _errorMessage = "Erro ao carregar notas: ${httpResponse.statusCode}"; notas = []; _filtrarNotas(); });
       }
