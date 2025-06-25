@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:memoapi/api.dart';
+import 'package:markdown_widget/markdown_widget.dart';
 
 class TelaComNotas extends StatefulWidget {
   final int? userId;
@@ -353,90 +354,12 @@ class _TelaComNotasState extends State<TelaComNotas> {
       _longPressedNoteId = null;
     });
 
-    String titulo = '';
-    String conteudo = '';
-    showModalBottomSheet(
-      isScrollControlled: true,
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter modalSetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                top: 24,
-                left: 24,
-                right: 24,
-              ),
-              child: AbsorbPointer(
-                absorbing: _isPerformingAction,
-                child: Wrap(
-                  children: [
-                    const Text(
-                      'Nova Nota',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      decoration: const InputDecoration(labelText: 'Título'),
-                      onChanged: (value) => titulo = value,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      decoration: const InputDecoration(labelText: 'Texto'),
-                      maxLines: 5,
-                      onChanged: (value) => conteudo = value,
-                      textInputAction: TextInputAction.done,
-                    ),
-                    const SizedBox(height: 20),
-                    _isPerformingAction
-                        ? const Center(child: CircularProgressIndicator())
-                        : ElevatedButton.icon(
-                      onPressed: () {
-                        if ((titulo.trim().isNotEmpty ||
-                            conteudo.trim().isNotEmpty)) {
-                          _criarNotaApi(titulo.trim(), conteudo.trim());
-                        } else {
-                          _showSnackbar(
-                            "Título ou conteúdo não podem estar vazios.",
-                            isError: true,
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.save),
-                      label: const Text('Salvar Nota'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+    _abrirModalEdicao(
+      tituloModal: 'Nova Nota',
+      onSave: (titulo, conteudo) {
+        _criarNotaApi(titulo, conteudo);
       },
-    ).then((_) {
-      if (mounted && _isPerformingAction) {
-        setState(() {
-          _isPerformingAction = false;
-        });
-      }
-    });
+    );
   }
 
   Future<void> _editarNotaApi(
@@ -501,8 +424,24 @@ class _TelaComNotasState extends State<TelaComNotas> {
       return;
     }
 
-    String titulo = notaOriginal["titulo"]?.toString() ?? '';
-    String conteudo = notaOriginal["conteudo"]?.toString() ?? '';
+    _abrirModalEdicao(
+      tituloModal: 'Editar Nota',
+      tituloInicial: notaOriginal["titulo"]?.toString() ?? '',
+      conteudoInicial: notaOriginal["conteudo"]?.toString() ?? '',
+      onSave: (titulo, conteudo) {
+        _editarNotaApi(noteId, titulo, conteudo);
+      },
+    );
+  }
+
+  void _abrirModalEdicao({
+    required String tituloModal,
+    String tituloInicial = '',
+    String conteudoInicial = '',
+    required Function(String, String) onSave,
+  }) {
+    final tituloController = TextEditingController(text: tituloInicial);
+    final conteudoController = TextEditingController(text: conteudoInicial);
 
     showModalBottomSheet(
       isScrollControlled: true,
@@ -525,26 +464,24 @@ class _TelaComNotasState extends State<TelaComNotas> {
                 absorbing: _isPerformingAction,
                 child: Wrap(
                   children: [
-                    const Text(
-                      'Editar Nota',
-                      style: TextStyle(
+                    Text(
+                      tituloModal,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      initialValue: titulo,
+                    TextField(
+                      controller: tituloController,
                       decoration: const InputDecoration(labelText: 'Título'),
-                      onChanged: (value) => titulo = value,
                       textInputAction: TextInputAction.next,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     TextFormField(
-                      initialValue: conteudo,
-                      decoration: const InputDecoration(labelText: 'Texto'),
-                      maxLines: 5,
-                      onChanged: (value) => conteudo = value,
+                      controller: conteudoController,
+                      decoration: const InputDecoration(labelText: 'Texto (Markdown)'),
+                      maxLines: 8,
                       textInputAction: TextInputAction.done,
                     ),
                     const SizedBox(height: 20),
@@ -552,13 +489,10 @@ class _TelaComNotasState extends State<TelaComNotas> {
                         ? const Center(child: CircularProgressIndicator())
                         : ElevatedButton.icon(
                       onPressed: () {
-                        if (titulo.trim().isNotEmpty ||
-                            conteudo.trim().isNotEmpty) {
-                          _editarNotaApi(
-                            noteId,
-                            titulo.trim(),
-                            conteudo.trim(),
-                          );
+                        final titulo = tituloController.text.trim();
+                        final conteudo = conteudoController.text.trim();
+                        if (titulo.isNotEmpty || conteudo.isNotEmpty) {
+                          onSave(titulo, conteudo);
                         } else {
                           _showSnackbar(
                             "Título ou conteúdo não podem estar vazios.",
@@ -567,7 +501,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                         }
                       },
                       icon: const Icon(Icons.save),
-                      label: const Text('Salvar Alterações'),
+                      label: const Text('Salvar Nota'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.white,
@@ -585,7 +519,9 @@ class _TelaComNotasState extends State<TelaComNotas> {
           },
         );
       },
-    ).then((_) {
+    ).whenComplete(() {
+      tituloController.dispose();
+      conteudoController.dispose();
       if (mounted && _isPerformingAction) {
         setState(() {
           _isPerformingAction = false;
@@ -608,6 +544,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
               _longPressedNoteId = null;
             });
           }
+          FocusScope.of(context).unfocus(); // Recolhe o teclado
         },
         child: Stack(
           children: [
@@ -720,7 +657,7 @@ class _TelaComNotasState extends State<TelaComNotas> {
                                 boxShadow: [
                                   BoxShadow(
                                     color: isLongPressed
-                                        ? Colors.blue.withAlpha((0.5 * 255).round()) // <-- MODIFIED
+                                        ? Colors.blue.withAlpha((0.5 * 255).round())
                                         : Colors.black12,
                                     blurRadius: isLongPressed ? 6 : 4,
                                     spreadRadius: isLongPressed ? 1 : 0,
@@ -759,23 +696,21 @@ class _TelaComNotasState extends State<TelaComNotas> {
                                         ),
                                         const SizedBox(height: 4),
                                         Expanded(
-                                          child: Container(
-                                            color: Colors
-                                                .transparent,
-                                            width:
-                                            double.infinity,
-                                            child: Text(
-                                              nota["conteudo"]
-                                                  ?.toString() ??
-                                                  '',
-                                              style:
-                                              const TextStyle(
-                                                fontSize: 12,
+                                          child: SizedBox(
+                                            height: 100, // Limita altura da pré-visualização
+                                            width: double.infinity,
+                                            child: IgnorePointer( // Impede scroll e interação no card
+                                              child: MarkdownWidget(
+                                                data: nota["conteudo"]?.toString() ?? '',
+                                                shrinkWrap: true,
+                                                config: MarkdownConfig(
+                                                    configs: [
+                                                      PConfig(
+                                                        textStyle: const TextStyle(fontSize: 12, color: Colors.black87),
+                                                      ),
+                                                    ]
+                                                ),
                                               ),
-                                              overflow:
-                                              TextOverflow
-                                                  .ellipsis,
-                                              maxLines: 5,
                                             ),
                                           ),
                                         ),
